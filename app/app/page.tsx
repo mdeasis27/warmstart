@@ -1,18 +1,52 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Alert } from "@/design-system/components/alert";
 import { Card } from "@/design-system/components/card";
 import { MetricCard } from "@/design-system/components/metric-card";
 import { Meter } from "@/design-system/components/meter";
 import { StatusBadge } from "@/design-system/components/status-badge";
+import { createCache, type CacheEntry, type CacheHit, type CacheParams } from "@/lib/cache/cache";
 import { getDashboard, getPrecisionCurve, TUNED_THRESHOLD } from "@/lib/cache/demo";
 
 const DASH = getDashboard();
 const CURVE = getPrecisionCurve();
 
+const PARAMS: CacheParams = {
+  model: "frontier-chat",
+  temperature: 0,
+  tier: "free",
+  promptVersion: "v3",
+};
+
+const SEED: CacheEntry[] = [
+  {
+    params: PARAMS,
+    query: "¿Cómo funcionan las devoluciones?",
+    intent: "returns_policy",
+    response: "Las devoluciones son gratuitas dentro de los 30 días de la compra.",
+  },
+  {
+    params: PARAMS,
+    query: "¿Dónde está mi pedido?",
+    intent: "order_status",
+    response: "Tu pedido está en reparto y se entrega hoy antes de las 18:00.",
+  },
+];
+
 export default function AppPage() {
   const tuned = DASH.tuned;
+  const [query, setQuery] = useState("¿Cómo funcionan las devoluciones de productos?");
+  const [threshold, setThreshold] = useState(TUNED_THRESHOLD);
+  const [result, setResult] = useState<CacheHit | null>(null);
+
+  function run() {
+    const cache = createCache(threshold);
+    for (const entry of SEED) cache.put(entry);
+    setResult(cache.get(query, PARAMS, ""));
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-background/80 backdrop-blur-md">
@@ -53,6 +87,86 @@ export default function AppPage() {
           <MetricCard label="Falsos hits" value={`${(tuned.falseHitRate * 100).toFixed(0)}%`} tone={tuned.falseHitRate === 0 ? "success" : "danger"} />
           <MetricCard label="Queries" value={tuned.total} hint={`${tuned.exactHits} exactas · ${tuned.semanticHits} semánticas`} />
         </div>
+
+        {/* ── PLAYGROUND ──────────────────────── */}
+        <section>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Caché en vivo</h2>
+          <p className="text-sm text-muted-foreground mb-5">
+            La caché ya viene calentada con dos consultas conocidas. Escribe una consulta y
+            ajusta el umbral de similitud: por encima del umbral devuelve la respuesta cacheada,
+            por debajo es un miss.
+          </p>
+
+          <Card className="p-5 space-y-4">
+            <div className="space-y-1">
+              <span className="text-sm text-foreground">Consulta</span>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Escribe una consulta…"
+                className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">Umbral de similitud</span>
+                <span className="font-mono text-sm tabular-nums text-foreground">{threshold.toFixed(2)}</span>
+              </div>
+              <input
+                type="range"
+                min={0.4}
+                max={0.9}
+                step={0.01}
+                value={threshold}
+                onChange={(e) => setThreshold(Number(e.target.value))}
+                className="w-full accent-foreground"
+              />
+            </div>
+            <button
+              onClick={run}
+              className="w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors"
+            >
+              Consultar caché
+            </button>
+          </Card>
+
+          {result && (
+            <Card className="mt-4 p-5">
+              {result.kind === "miss" ? (
+                <div className="flex items-center gap-3">
+                  <StatusBadge tone="warning" dot>miss</StatusBadge>
+                  <span className="text-sm text-muted-foreground">
+                    Sin coincidencia semántica por encima de {threshold.toFixed(2)} — esta consulta iría al LLM.
+                  </span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <StatusBadge tone="success" dot>hit</StatusBadge>
+                    <span className="text-sm text-muted-foreground">
+                      {result.kind === "exact" ? "Coincidencia exacta" : "Coincidencia semántica"}
+                    </span>
+                  </div>
+                  <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-4 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Intent detectado</span>
+                      <span className="font-mono text-foreground">{result.entry?.intent}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Consulta cacheada</span>
+                      <span className="text-foreground text-right max-w-[60%]">{result.entry?.query}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Respuesta servida: </span>
+                      <span className="text-foreground">{result.entry?.response}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+        </section>
 
         {/* Breakdown */}
         <section>
