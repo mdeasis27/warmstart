@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored kits (synced from the hub) are not this project's lint debt:
+    "ai-kit/**",
+    "design-system/**",
   ]),
 ]);
 

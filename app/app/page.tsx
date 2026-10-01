@@ -1,51 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Alert } from "@/design-system/components/alert";
 import { Card } from "@/design-system/components/card";
-import { MetricCard } from "@/design-system/components/metric-card";
-import { Meter } from "@/design-system/components/meter";
 import { StatusBadge } from "@/design-system/components/status-badge";
-import { createCache, type CacheEntry, type CacheHit, type CacheParams } from "@/lib/cache/cache";
-import { getDashboard, getPrecisionCurve, TUNED_THRESHOLD } from "@/lib/cache/demo";
 
-const DASH = getDashboard();
-const CURVE = getPrecisionCurve();
+interface LookupResult {
+  kind: "exact" | "semantic" | "miss";
+  hit: boolean;
+  intent: string | null;
+  cachedQuery: string | null;
+  response: string | null;
+  error?: string;
+}
 
-const PARAMS: CacheParams = {
-  model: "frontier-chat",
-  temperature: 0,
-  tier: "free",
-  promptVersion: "v3",
+interface HistoryItem {
+  id: number;
+  query: string;
+  kind: string;
+  hit: boolean;
+  created_at: string;
+}
+
+const KIND_TONE: Record<string, "success" | "warning" | "danger"> = {
+  exact: "success",
+  semantic: "success",
+  miss: "warning",
 };
 
-const SEED: CacheEntry[] = [
-  {
-    params: PARAMS,
-    query: "¿Cómo funcionan las devoluciones?",
-    intent: "returns_policy",
-    response: "Las devoluciones son gratuitas dentro de los 30 días de la compra.",
-  },
-  {
-    params: PARAMS,
-    query: "¿Dónde está mi pedido?",
-    intent: "order_status",
-    response: "Tu pedido está en reparto y se entrega hoy antes de las 18:00.",
-  },
-];
-
 export default function AppPage() {
-  const tuned = DASH.tuned;
   const [query, setQuery] = useState("¿Cómo funcionan las devoluciones de productos?");
-  const [threshold, setThreshold] = useState(TUNED_THRESHOLD);
-  const [result, setResult] = useState<CacheHit | null>(null);
+  const [threshold, setThreshold] = useState(0.8);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<LookupResult | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  function run() {
-    const cache = createCache(threshold);
-    for (const entry of SEED) cache.put(entry);
-    setResult(cache.get(query, PARAMS, ""));
+  async function loadHistory() {
+    try {
+      const res = await fetch("/api/history");
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.lookups ?? []);
+      }
+    } catch {
+      /* history is best-effort */
+    }
   }
+
+  async function run() {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, threshold }),
+      });
+      const data = await res.json();
+      setResult(data);
+      if (res.ok) loadHistory();
+    } catch (err) {
+      setResult({ kind: "miss", hit: false, intent: null, cachedQuery: null, response: null, error: err instanceof Error ? err.message : "Error de red" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/history")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (active && data) setHistory(data.lookups ?? []);
+      })
+      .catch(() => {
+        /* history is best-effort */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,186 +109,132 @@ export default function AppPage() {
               </div>
             </div>
           </div>
-          <StatusBadge tone="info" dot className="px-3 py-1">
-            Demo mode
+          <StatusBadge tone="success" dot className="px-3 py-1">
+            Postgres en vivo
           </StatusBadge>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-10">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <MetricCard label="Hit rate" value={`${(tuned.hitRate * 100).toFixed(1)}%`} tone="success" hint={`umbral ${TUNED_THRESHOLD}`} />
-          <MetricCard label="Ahorro" value={`${(tuned.savingsPct * 100).toFixed(0)}%`} hint={`$${tuned.costUsd.toFixed(2)} vs $${tuned.baselineCostUsd.toFixed(2)}`} />
-          <MetricCard label="Falsos hits" value={`${(tuned.falseHitRate * 100).toFixed(0)}%`} tone={tuned.falseHitRate === 0 ? "success" : "danger"} />
-          <MetricCard label="Queries" value={tuned.total} hint={`${tuned.exactHits} exactas · ${tuned.semanticHits} semánticas`} />
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        <div className="max-w-3xl">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Consulta la caché semántica</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            La caché viene calentada con consultas conocidas. Ajusta el umbral de similitud y
+            consulta: cada lookup queda <strong>persistido en Postgres</strong> y aparece en el historial.
+          </p>
         </div>
 
-        {/* ── PLAYGROUND ──────────────────────── */}
-        <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Caché en vivo</h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            La caché ya viene calentada con dos consultas conocidas. Escribe una consulta y
-            ajusta el umbral de similitud: por encima del umbral devuelve la respuesta cacheada,
-            por debajo es un miss.
-          </p>
-
-          <Card className="p-5 space-y-4">
-            <div className="space-y-1">
-              <span className="text-sm text-foreground">Consulta</span>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Escribe una consulta…"
-                className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
-              />
+        <Card className="p-5 space-y-4">
+          <div className="space-y-1">
+            <span className="text-sm text-foreground">Consulta</span>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && run()}
+              placeholder="Escribe una consulta…"
+              className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+            />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-foreground">Umbral de similitud</span>
+              <span className="font-mono text-sm tabular-nums text-foreground">{threshold.toFixed(2)}</span>
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground">Umbral de similitud</span>
-                <span className="font-mono text-sm tabular-nums text-foreground">{threshold.toFixed(2)}</span>
-              </div>
-              <input
-                type="range"
-                min={0.4}
-                max={0.9}
-                step={0.01}
-                value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value))}
-                className="w-full accent-foreground"
-              />
-            </div>
-            <button
-              onClick={run}
-              className="w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors"
-            >
-              Consultar caché
-            </button>
-          </Card>
+            <input
+              type="range"
+              min={0.4}
+              max={0.9}
+              step={0.01}
+              value={threshold}
+              onChange={(e) => setThreshold(Number(e.target.value))}
+              className="w-full accent-foreground"
+            />
+          </div>
+          <button
+            onClick={run}
+            disabled={loading}
+            className="w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors disabled:opacity-50"
+          >
+            {loading ? "Consultando…" : "Consultar caché"}
+          </button>
+        </Card>
 
-          {result && (
-            <Card className="mt-4 p-5">
-              {result.kind === "miss" ? (
-                <div className="flex items-center gap-3">
-                  <StatusBadge tone="warning" dot>miss</StatusBadge>
-                  <span className="text-sm text-muted-foreground">
-                    Sin coincidencia semántica por encima de {threshold.toFixed(2)} — esta consulta iría al LLM.
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-3">
+        {result && (
+          <div className="space-y-4">
+            {result.error && (
+              <Alert tone="danger" title="No se pudo consultar">{result.error}</Alert>
+            )}
+
+            {!result.error && (
+              <Card className="p-5">
+                {result.kind === "miss" ? (
                   <div className="flex items-center gap-3">
-                    <StatusBadge tone="success" dot>hit</StatusBadge>
+                    <StatusBadge tone="warning" dot>miss</StatusBadge>
                     <span className="text-sm text-muted-foreground">
-                      {result.kind === "exact" ? "Coincidencia exacta" : "Coincidencia semántica"}
+                      Sin coincidencia por encima de {threshold.toFixed(2)} — esta consulta iría al LLM.
                     </span>
                   </div>
-                  <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-4 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Intent detectado</span>
-                      <span className="font-mono text-foreground">{result.entry?.intent}</span>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <StatusBadge tone={KIND_TONE[result.kind]} dot>hit</StatusBadge>
+                      <span className="text-sm text-muted-foreground">
+                        {result.kind === "exact" ? "Coincidencia exacta" : "Coincidencia semántica"}
+                      </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Consulta cacheada</span>
-                      <span className="text-foreground text-right max-w-[60%]">{result.entry?.query}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Respuesta servida: </span>
-                      <span className="text-foreground">{result.entry?.response}</span>
+                    <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Intent detectado</span>
+                        <span className="font-mono text-foreground">{result.intent}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Consulta cacheada</span>
+                        <span className="text-foreground text-right max-w-[60%]">{result.cachedQuery}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Respuesta servida: </span>
+                        <span className="text-foreground">{result.response}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </Card>
-          )}
-        </section>
-
-        {/* Breakdown */}
-        <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Desglose del replay</h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            {tuned.total} consultas con forma de producción (~60% son las mismas preguntas reformuladas).
-          </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <MetricCard label="Exact hits" value={tuned.exactHits} />
-            <MetricCard label="Semantic hits" value={tuned.semanticHits} />
-            <MetricCard label="Falsos hits" value={tuned.falseHits} tone={tuned.falseHits === 0 ? "success" : "danger"} />
-            <MetricCard label="Misses" value={tuned.misses} />
+                )}
+              </Card>
+            )}
           </div>
-        </section>
+        )}
 
-        {/* Precision curve */}
-        <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Curva de precisión</h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            El umbral de similitud es una decisión de negocio: cuánto error te puedes permitir.
-          </p>
-          <div className="overflow-x-auto rounded-[var(--radius-md)] shadow-[var(--shadow-card)] bg-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--gray-50)]">
-                  <th scope="col" className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Umbral</th>
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hit rate</th>
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">False-hit rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {CURVE.map((row) => (
-                  <tr key={row.threshold} className={row.threshold === TUNED_THRESHOLD ? "bg-accent/5" : ""}>
-                    <td className="px-5 py-3 text-foreground">
-                      {row.threshold.toFixed(1)}
-                      {row.threshold === TUNED_THRESHOLD && <span className="ml-2 text-xs text-accent">elegido</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-foreground">{(row.hitRate * 100).toFixed(1)}%</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      <span className={row.falseHitRate === 0 ? "text-success" : "text-danger"}>
-                        {(row.falseHitRate * 100).toFixed(0)}%
-                      </span>
-                    </td>
+        {history.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Historial de lookups (persistido en Postgres)</h3>
+            <div className="overflow-x-auto rounded-[var(--radius-md)] shadow-[var(--shadow-card)] bg-card">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--gray-50)]">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Consulta</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultado</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fecha</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Bajar el umbral a 0.4 sube el hit rate al 86.7% pero introduce un 30% de respuestas
-            equivocadas. En 0.8, cero falsos hits manteniendo 82.5% de aciertos.
-          </p>
-        </section>
-
-        {/* Version bust */}
-        <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Cambio de prompt invalida la caché</h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            La clave incluye la versión del system prompt, así que una consulta v4 nunca sirve una respuesta v3.
-          </p>
-          <div className="space-y-3">
-            <Card className="p-5 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-foreground">Cache calentada con v3</span>
-                <span className="text-sm font-semibold tabular-nums text-foreground">{DASH.bust.warmedEntries} entradas</span>
-              </div>
-              <Meter value={DASH.bust.warmedEntries} max={DASH.bust.warmedEntries} tone="success" />
-            </Card>
-            <Card className="p-5 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-foreground">Consultas v4 que aciertan contra v3</span>
-                <span className="text-sm font-semibold tabular-nums text-foreground">{DASH.bust.v4Hits}</span>
-              </div>
-              <Meter value={DASH.bust.v4Hits} max={DASH.bust.warmedEntries} tone="info" />
-              <Alert tone={DASH.bust.v4Hits === 0 ? "success" : "danger"}>
-                {DASH.bust.v4Hits === 0
-                  ? "Cero aciertos: la versión está en la clave, no se sirve comportamiento de ayer."
-                  : "Fuga: se sirvieron respuestas de una versión anterior."}
-              </Alert>
-            </Card>
-          </div>
-        </section>
-
-        <footer className="pt-8 border-t border-[var(--border)] flex items-center justify-between text-xs text-muted-foreground">
-          <span>Warmstart · Caché semántica para LLM APIs · Demo mode</span>
-          <a href="https://github.com/mdeasis27/warmstart" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors font-mono">GitHub</a>
-        </footer>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {history.map((h) => (
+                    <tr key={h.id}>
+                      <td className="px-4 py-2.5 text-foreground">{h.query}</td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge tone={h.hit ? KIND_TONE[h.kind] ?? "success" : "warning"}>
+                          {h.kind}
+                        </StatusBadge>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                        {new Date(h.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
