@@ -1,96 +1,95 @@
-# Warmstart
+# Cache decision lab
 
-**Three-layer cache for LLM APIs** — exact match, semantic match above a tunable
-similarity floor, and provider prefix caching (modeled) — with a measured hit
-rate, cost savings, false-hit rate, and a precision curve that turns the
-threshold into a business decision.
+[Español](README.es.md) · [Try the demo](https://warmstart-manueldeasis27-2515s-projects.vercel.app/en/app) · [Case study](https://manueldeasis.com/en/projects/warmstart) · [Source](https://github.com/mdeasis27/warmstart)
 
-> **Result:** Replaying 120 production-shaped queries (60% are the same handful
-> of questions rephrased) at the tuned threshold **0.8** yields **82.5% hit
-> rate**, **74% cost savings**, and **0% false hits**. Lowering the threshold to
-> 0.4 raises hit rate to 86.7% but introduces **30% false hits** — the precision
-> curve makes that tradeoff explicit. A system-prompt version change busts the
-> cache to **0 hits** against the previous version.
+![Actual interactive local interface](docs/images/cover.png)
 
----
+Edit query batches, similarity thresholds and prompt versions to inspect cache paths.
 
-## Result
+## Two situations to compare
 
-| Measure | Value |
-|---|---|
-| Hit rate (threshold 0.8) | **82.5%** (93 exact + 6 semantic of 120) |
-| Cost savings | **74%** ($0.31 vs $1.20 modeled) |
-| False-hit rate (0.8) | **0%** |
-| False-hit rate (0.4) | **30%** (hit rate 86.7%) |
-| Version change → v4 hits vs v3 cache | **0** |
+**Prompt version v1:** 48 generated queries, similarity 0.65, prompt version v1. Seeded entries can follow the exact cache path.
 
-### The three layers
+![Prompt version v1](docs/images/scenario-a.png)
 
-1. **Exact** — key includes `model + temperature + tier + prompt version + query`.
-2. **Semantic** — char-trigram Dice similarity above a tunable floor; measured
-   against ground-truth intent labels for false hits.
-3. **Prefix caching** — provider-side, modeled as a constant (documented).
+**Prompt version v2:** Same 48 queries and similarity; prompt changes to v2. The version change invalidates seeded entries.
 
-### The precision curve is the deliverable
+![Prompt version v2](docs/images/scenario-b.png)
 
-The similarity threshold is a *business* decision about how wrong you can afford
-to be. This project plots it instead of asserting it.
+## Business use case
 
-| Threshold | Hit rate | False-hit rate |
-|---|---|---|
-| 0.4 | 86.7% | 30% |
-| 0.6 | 83.3% | 100% |
-| **0.8** | **82.5%** | **0%** |
-| 0.9 | 82.5% | 0% |
+A cache entry can be cheap to reuse but invalid after a prompt version changes.
 
-The 0.6 row is the honest gotcha: my lexical proxy merges the *"how do returns
-work"* and *"how do I return a damaged item"* intents, so at that floor every
-semantic hit is wrong. That is exactly the failure mode a semantic cache has
-when its similarity is naive — measured, not hidden.
+**Who uses it:** Product owner managing prompt changes.
 
----
+**The decision:** Retain a cache entry or invalidate it for the new prompt.
+
+Choose prompt version v1 or v2, inspect the seeded cache key, then read the hit or invalidation path.
+
+### Try the decision
+
+**Prompt version v1:** 48 generated queries, similarity 0.65, prompt version v1. Seeded entries can follow the exact cache path.
+
+**Prompt version v2:** Same 48 queries and similarity; prompt changes to v2. The version change invalidates seeded entries.
+
+Choose a scenario, edit its controls and run the local computation. Step through the visual process or reveal all steps. Reset before comparing the second scenario.
+
+## How to try it
+
+Open `/en/app` (English, default) or `/es/app` (Spanish). Change the scenario inputs and run the computation. Inspect the resulting decision, evidence and computed trace. Playback reveals completed local steps; it does not measure a live model. Reset starts a new local scenario. Changing language resets the scenario.
+
+The primary demo needs no account, API key or database. Public links refer to the existing deployment; local redesign changes are pending publication.
+
+<!-- recruiter-mission:start -->
+### Your interactive mission
+
+Load lookalike intents, inspect query | intent pairs, optionally predict a false hit, then replay and compare your similarity threshold with 0.95. Custom queries replace the generated batch.
+
+The challenge uses three labeled queries. At similarity 0.35 it produces one false semantic hit and a 1¢ batch cost; at 0.95 it produces zero false semantic hits and a 2¢ batch cost. Queries, order, seeded cache and prompt version stay fixed. A miss inserts an entry, so later cache paths can diverge.
+
+**Why this approach:** Lexical similarity and fictional intent labels expose why a cheap cache hit can reuse the wrong answer. The 0.95 reference is not a correctness guarantee, and this is not embedding or live model output.
+
+**Before production:** Validate real labeled queries, false exact/semantic hits, tenant isolation, permissions, expiry and invalidation. Rates are illustrative: 100¢ per 1,000 hits and 1,000¢ per 1,000 misses, aggregated with one final rounding up to an integer cent per batch; actual prices and latency require separate measurement.
+
+Editing inputs, choosing a preset or resetting clears the prediction and obsolete results. Comparisons appear only at completed playback; the primary demos need no account or key.
+
+The mission pilot updates this implementation. Existing screenshots and browser reports document the previous stage; fresh browser interaction checks and captures are pending because the current environment blocked them.
+<!-- recruiter-mission:end -->
+
+## Local setup and verification
+
+Requires Node.js 22 and pnpm 10.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm test
+node node_modules/typescript/bin/tsc --noEmit --incremental false
+pnpm lint
+pnpm build
+```
+
+Open `http://localhost:3000/en/app`. Recorded validation covers tests, lint, TypeScript and production builds. See [command results](docs/quality/decision-lab-verification.json) and [browser component checks](docs/quality/decision-lab-browser.json). The new browser checks exercise real React components and production CSS with controlled locale navigation; they do not certify Next routes or public deployment.
 
 ## Architecture
 
-```
-lib/cache/
-  semantic.ts    # normalisation, char-trigram Dice similarity, stable hash
-  cache.ts       # three-layer cache + replay (hit rate, cost, false hits)
-  workload.ts    # 6 intents × paraphrases, weighted like real support traffic
-  demo.ts        # dashboard + precision curve + version-bust proof
-backend/
-  src/warmstart/cache.py   # canonical Python implementation
-  tests/                   # pinned to the same cases as the TS tests
-app/               # Next.js demo dashboard + landing
-```
+- `app/[lang]/`: localized browser experience.
+- `lib/experience/`: typed local adapter, validation and run traces.
+- `design-system/`: shared visual tokens, locale controls and execution/replay presentation.
+- `app/api/`: optional server integrations; the primary demo does not require them.
 
-## Design decisions & tradeoffs
+Technology: Next.js 16, TypeScript, Python, Vitest, pytest, Tailwind CSS v4.
 
-1. **Version in the key.** The exact key includes the prompt version, so a v4
-   query can never serve a v3 answer. This is the single highest-value detail:
-   it is what prevents serving "yesterday's behaviour".
-2. **Deterministic Dice, not an embedding model.** The offline demo can't ship
-   an embedder, so similarity is char-trigram Dice. Its ceiling is paraphrase
-   coverage (a real embedding model would capture more); the harness and the
-   precision-curve mechanics are what transfer.
-3. **Math in two languages.** TS for the browser, Python for the canonical
-   backend, pinned by identical test cases.
+## Evidence and limitations
 
-## What did not work
+Queries split into exact, semantic and miss branches with computed counts. Final totals show prompt-version invalidations and prototype costs.
 
-- **The lexical proxy merges near-duplicate intents.** At threshold 0.6 the
-  false-hit rate is 100% because "returns policy" and "return a damaged item"
-  are lexically near-identical. A real semantic cache fixes this with embeddings
-  or a judge — the demo exists to *show* the failure before it costs you money.
+Exact hits, semantic hits, misses and invalidation; costs are disclosed assumptions in integer cents.
 
-## Run it
+Makes cache cost and prompt-version compatibility visible before reuse.
 
-```bash
-pnpm install && pnpm dev      # http://localhost:3000
-pnpm test                     # 10 vitest tests
-cd backend && uv sync --extra dev && uv run pytest   # 6 tests
-```
+**Limits:** Cache keys and costs are local examples; cache performance and quality are not measured. These portfolio prototypes do not claim measured production impact.
 
-## Stack
+Inputs use fictional or anonymized examples. Optional live integrations require their own credentials and operational setup. Secrets belong in the configured secret manager, never in local secret files or Git. Use the existing `infisical run -- <command>` workflow when live integration is needed. This repository does not publish or deploy automatically as part of the local demo.
 
-Next.js 16 · TypeScript · Vitest · Tailwind v4 · Python 3.14 · pytest
+![Actual English demo capture](docs/images/demo.png)

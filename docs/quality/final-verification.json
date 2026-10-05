@@ -1,0 +1,30 @@
+{
+  "repository": "warmstart",
+  "verifiedAt": "2026-10-01T11:04:28.2371497-06:00",
+  "commands": {
+    "test": {
+      "command": "npm test",
+      "exitCode": 0,
+      "testCount": 13,
+      "log": "docs/quality/final-test.log"
+    },
+    "lint": {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "testCount": null,
+      "log": "docs/quality/final-lint.log"
+    },
+    "types": {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "testCount": null,
+      "log": "docs/quality/final-types.log"
+    },
+    "build": {
+      "command": "npm run build",
+      "exitCode": 0,
+      "testCount": null,
+      "log": "docs/quality/final-build.log"
+    }
+  }
+}

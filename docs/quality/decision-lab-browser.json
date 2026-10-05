@@ -1,0 +1,51 @@
+{
+  "repository": "warmstart",
+  "scope": "Real React component with controlled locale; Next routes not tested.",
+  "checks": [
+    {
+      "locale": "en",
+      "scenarios": [
+        {
+          "preset": "Prompt version v1\n48 generated queries, similarity 0.65, prompt version v1.",
+          "outcome": "Cache balance ready\n\n0 entries invalidated; local cost 15¢ versus 48¢."
+        },
+        {
+          "preset": "Prompt version v2\nSame 48 queries and similarity; prompt changes to v2.",
+          "outcome": "Cache balance ready\n\n16 entries invalidated; local cost 23¢ versus 48¢."
+        }
+      ],
+      "mobileNoOverflow": true,
+      "reducedMotion": true,
+      "keyboard": true,
+      "noRequests": true,
+      "sceneChangesWithScenario": true,
+      "editingClearsPresetAndTrace": true,
+      "resetRestoresFirstPreset": true,
+      "cancelControlPresent": true,
+      "presetRestoresAllInputs": true
+    },
+    {
+      "locale": "es",
+      "scenarios": [
+        {
+          "preset": "Prompt versión v1\n48 consultas generadas, similitud 0.65, versión de prompt v1.",
+          "outcome": "Balance de caché listo\n\n0 entradas invalidadas; coste local 15¢ frente a 48¢."
+        },
+        {
+          "preset": "Prompt versión v2\nMismas 48 consultas y similitud; el prompt cambia a v2.",
+          "outcome": "Balance de caché listo\n\n16 entradas invalidadas; coste local 23¢ frente a 48¢."
+        }
+      ],
+      "mobileNoOverflow": true,
+      "reducedMotion": true,
+      "keyboard": true,
+      "noRequests": true,
+      "sceneChangesWithScenario": true,
+      "editingClearsPresetAndTrace": true,
+      "resetRestoresFirstPreset": true,
+      "cancelControlPresent": true,
+      "presetRestoresAllInputs": true
+    }
+  ],
+  "errors": []
+}

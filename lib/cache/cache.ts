@@ -68,13 +68,12 @@ export function createCache(threshold: number) {
   }
 
   function invalidatePromptVersion(version: string): number {
-    let removed = 0;
     for (const [key, entry] of exact) {
       if (entry.params.promptVersion === version) {
         exact.delete(key);
-        removed += 1;
       }
     }
+    let removed = 0;
     for (let i = semantic.length - 1; i >= 0; i -= 1) {
       if (semantic[i].params.promptVersion === version) {
         semantic.splice(i, 1);
@@ -95,20 +94,20 @@ export type ReplayResult = {
   misses: number;
   hitRate: number;
   falseHitRate: number; // false hits over semantic hits
-  costUsd: number;
-  baselineCostUsd: number;
+  costCents: number;
+  baselineCostCents: number;
   savingsPct: number;
 };
 
-export const MISS_COST_USD = 0.01;
-export const HIT_COST_USD = 0.001;
+export const MISS_CENTS_PER_THOUSAND = 1000;
+export const HIT_CENTS_PER_THOUSAND = 100;
 
 export function replay(
   workload: readonly { query: string; intent: string }[],
   params: CacheParams,
   threshold: number,
+  cache = createCache(threshold),
 ): ReplayResult {
-  const cache = createCache(threshold);
   let exactHits = 0;
   let semanticHits = 0;
   let falseHits = 0;
@@ -133,8 +132,8 @@ export function replay(
 
   const total = workload.length;
   const hits = exactHits + semanticHits;
-  const costUsd = hits * HIT_COST_USD + misses * MISS_COST_USD;
-  const baselineCostUsd = total * MISS_COST_USD;
+  const costCents = Math.ceil((hits * HIT_CENTS_PER_THOUSAND + misses * MISS_CENTS_PER_THOUSAND) / 1000);
+  const baselineCostCents = Math.ceil(total * MISS_CENTS_PER_THOUSAND / 1000);
 
   return {
     total,
@@ -144,8 +143,8 @@ export function replay(
     misses,
     hitRate: hits / total,
     falseHitRate: semanticHits === 0 ? 0 : falseHits / semanticHits,
-    costUsd,
-    baselineCostUsd,
-    savingsPct: baselineCostUsd === 0 ? 0 : 1 - costUsd / baselineCostUsd,
+    costCents,
+    baselineCostCents,
+    savingsPct: baselineCostCents === 0 ? 0 : 1 - costCents / baselineCostCents,
   };
 }

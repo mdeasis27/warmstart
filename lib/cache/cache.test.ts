@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createCache, exactKey, replay, HIT_COST_USD, MISS_COST_USD } from "./cache";
+import { createCache, exactKey, replay } from "./cache";
 import { generateWorkload } from "./workload";
 import { hashString, similarity, normalize } from "./semantic";
 
@@ -66,12 +66,17 @@ describe("cache", () => {
 });
 
 describe("replay", () => {
+  it("bills aggregate rates in integer cents with one final rounding", () => {
+    const result = replay([{ query: "q", intent: "i" }, { query: "q", intent: "i" }, { query: "q", intent: "i" }], PARAMS, .95);
+    expect(result.costCents).toBe(2);
+    expect(result.baselineCostCents).toBe(3);
+  });
   it("reaches a non-trivial hit rate and reports savings", () => {
     const workload = generateWorkload(200, 7);
     const r = replay(workload, PARAMS, 0.6);
     expect(r.total).toBe(200);
     expect(r.hitRate).toBeGreaterThan(0.3);
-    expect(r.costUsd).toBeLessThan(r.baselineCostUsd);
+    expect(r.costCents).toBeLessThan(r.baselineCostCents);
     expect(r.savingsPct).toBeGreaterThan(0);
     expect(r.falseHitRate).toBeLessThanOrEqual(1);
   });
