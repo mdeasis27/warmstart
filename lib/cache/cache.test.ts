@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createCache, exactKey, replay } from "./cache";
 import { generateWorkload } from "./workload";
+import outcomesFixture from "./fixtures/outcomes.json";
 import { hashString, similarity, normalize } from "./semantic";
 
 const PARAMS = { model: "m", temperature: 0, tier: "free", promptVersion: "v1" };
@@ -79,5 +80,20 @@ describe("replay", () => {
     expect(r.costCents).toBeLessThan(r.baselineCostCents);
     expect(r.savingsPct).toBeGreaterThan(0);
     expect(r.falseHitRate).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("per-query outcomes", () => {
+  it("records one outcome per query, consistent with the totals", () => {
+    const r = replay(generateWorkload(48), PARAMS, 0.35);
+    expect(r.outcomes).toHaveLength(48);
+    expect(r.outcomes.filter(o => o === "exact")).toHaveLength(r.exactHits);
+    expect(r.outcomes.filter(o => o === "miss")).toHaveLength(r.misses);
+    expect(r.outcomes.filter(o => o === "false")).toHaveLength(r.falseHits);
+    expect(r.outcomes.filter(o => o === "semantic" || o === "false")).toHaveLength(r.semanticHits);
+  });
+
+  it("matches the outcomes pinned for Python", () => {
+    for (const c of outcomesFixture.cases) expect(replay(outcomesFixture.workload, PARAMS, c.threshold).outcomes).toEqual(c.outcomes);
   });
 });

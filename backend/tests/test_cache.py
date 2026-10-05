@@ -44,3 +44,12 @@ def test_replay_savings():
     r = replay(workload, PARAMS, 0.6)
     assert r["hitRate"] > 0.25
     assert r["costUsd"] < r["baselineCostUsd"]
+
+
+def test_outcomes_match_shared_fixture():
+    import json
+    from pathlib import Path
+    fx = json.loads((Path(__file__).parent / "fixtures" / "outcomes.json").read_text(encoding="utf-8"))
+    for case in fx["cases"]:
+        r = replay(fx["workload"], fx["params"], case["threshold"])
+        assert r["outcomes"] == case["outcomes"], case["threshold"]

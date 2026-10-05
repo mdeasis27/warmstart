@@ -97,6 +97,8 @@ export type ReplayResult = {
   costCents: number;
   baselineCostCents: number;
   savingsPct: number;
+  /** One per workload item, in order. "false" is a semantic hit that served another intent's answer. */
+  outcomes: ("exact" | "semantic" | "miss" | "false")[];
 };
 
 export const MISS_CENTS_PER_THOUSAND = 1000;
@@ -112,9 +114,11 @@ export function replay(
   let semanticHits = 0;
   let falseHits = 0;
   let misses = 0;
+  const outcomes: ReplayResult["outcomes"] = [];
 
   for (const item of workload) {
     const hit = cache.get(item.query, params, item.intent);
+    outcomes.push(hit.kind === "semantic" && hit.falseHit ? "false" : hit.kind);
     if (hit.kind === "exact") exactHits += 1;
     else if (hit.kind === "semantic") {
       semanticHits += 1;
@@ -146,5 +150,6 @@ export function replay(
     costCents,
     baselineCostCents,
     savingsPct: baselineCostCents === 0 ? 0 : 1 - costCents / baselineCostCents,
+    outcomes,
   };
 }
