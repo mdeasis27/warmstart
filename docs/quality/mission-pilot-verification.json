@@ -1,0 +1,26 @@
+{
+  "repository": "warmstart",
+  "scope": "Local mission pilot; source/config lint excludes unchanged backend caches; secret files are not loaded; no route or deployment claim.",
+  "commands": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run",
+      "exitCode": 0,
+      "log": "mission-pilot-test.log"
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js --no-error-on-unmatched-pattern ai-kit app components design-system lib scripts eslint.config.mjs next.config.ts postcss.config.mjs proxy.ts vitest.config.ts",
+      "exitCode": 0,
+      "log": "mission-pilot-lint.log"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "exitCode": 0,
+      "log": "mission-pilot-types.log"
+    },
+    {
+      "command": "node node_modules/next/dist/bin/next build",
+      "exitCode": 0,
+      "log": "mission-pilot-build.log"
+    }
+  ]
+}

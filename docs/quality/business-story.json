@@ -1,0 +1,40 @@
+{
+  "en": {
+    "user": "Product owner managing prompt changes",
+    "problem": "A cache entry can be cheap to reuse but invalid after a prompt version changes.",
+    "workflow": "Choose prompt version v1 or v2, inspect the seeded cache key, then read the hit or invalidation path.",
+    "decision": "Retain a cache entry or invalidate it for the new prompt.",
+    "value": "Makes cache cost and prompt-version compatibility visible before reuse.",
+    "visual": "Queries split into exact, semantic and miss branches with computed counts. Final totals show prompt-version invalidations and prototype costs.",
+    "scenarioA": {
+      "title": "Prompt version v1",
+      "input": "48 generated queries, similarity 0.65, prompt version v1.",
+      "observation": "Seeded entries can follow the exact cache path."
+    },
+    "scenarioB": {
+      "title": "Prompt version v2",
+      "input": "Same 48 queries and similarity; prompt changes to v2.",
+      "observation": "The version change invalidates seeded entries."
+    },
+    "limitation": "Cache keys and costs are local examples; cache performance and quality are not measured."
+  },
+  "es": {
+    "user": "Responsable de producto que gestiona cambios de prompt",
+    "problem": "Una entrada de caché puede ser barata de reutilizar pero inválida tras cambiar la versión del prompt.",
+    "workflow": "Elige prompt v1 o v2, inspecciona la llave de caché sembrada y lee la ruta de acierto o invalidación.",
+    "decision": "Conservar una entrada de caché o invalidarla para el nuevo prompt.",
+    "value": "Hace visible la compatibilidad entre costo de caché y versión de prompt antes de reutilizar.",
+    "visual": "Las consultas se separan en ramas exacta, semántica y sin acierto con conteos calculados. Los totales finales muestran invalidaciones por versión de prompt y costos del prototipo.",
+    "scenarioA": {
+      "title": "Prompt versión v1",
+      "input": "48 consultas generadas, similitud 0.65, versión de prompt v1.",
+      "observation": "Las entradas sembradas pueden seguir la ruta exacta de caché."
+    },
+    "scenarioB": {
+      "title": "Prompt versión v2",
+      "input": "Mismas 48 consultas y similitud; el prompt cambia a v2.",
+      "observation": "El cambio de versión invalida las entradas sembradas."
+    },
+    "limitation": "Las llaves y costos de caché son ejemplos locales; no se mide rendimiento ni calidad de caché."
+  }
+}

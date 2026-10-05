@@ -1,0 +1,6 @@
+{
+  "command": "pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --offline",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-01T11:07:49.0732523-06:00",
+  "log": "docs/quality/final-install.log"
+}
