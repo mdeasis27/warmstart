@@ -1,26 +1,86 @@
 "use client";
 import { useState } from "react";
-import { runMission } from "@/lib/experience/mission";
-import { MissionBrief, MissionPrompt, MissionComparison, DecisionNotes } from "@/design-system/demo/mission-lab";
-import { ScenarioPicker } from "@/design-system/demo/decision-lab";
-import story from "@/docs/quality/business-story.json";
 import { useLocale } from "@/design-system/i18n/context";
-import { useDemoRun } from "@/design-system/demo/use-demo-run";
 import { TracePlayer } from "@/design-system/demo/trace-player";
+import { MissionPrompt, MissionComparison } from "@/design-system/demo/mission-lab";
+import { useDemoRun } from "@/design-system/demo/use-demo-run";
+import { StoryHero, StorySection, AnalogyBlock, WhyIBuiltIt, FitGuide, ProvesBlock, EngineerNotes } from "@/design-system/demo/project-story";
 import { traceCopy } from "@/lib/experience/trace-copy";
-import { WarmstartScene } from "@/lib/experience/warmstart-scene";
-const defaults = { threshold: .65, version: "v1", batch: 48, queries: "" };
+import { runMission } from "@/lib/experience/mission";
+import { WarmstartStoryScene } from "@/lib/experience/story-scene";
+import { COMPLETE_FRAME } from "@/lib/experience/scene-state";
+import { STORY } from "@/lib/experience/story";
+
+const REPO = "https://github.com/mdeasis27/warmstart";
+const DEFAULT_THRESHOLD = .65;
+
 export default function Page() {
-    const locale = useLocale(), es = locale === "es", s = story[locale];
-    const [threshold, setThreshold] = useState(defaults.threshold), [version, setVersion] = useState(defaults.version), [batch, setBatch] = useState(defaults.batch), [queries, setQueries] = useState(defaults.queries), [scenario, setScenario] = useState("a"), demo = useDemoRun(runMission), result = demo.run?.result;
-    const [prediction, setPrediction] = useState<string | null>(null);
-    const clear = () => { setPrediction(null); demo.reset(); };
-    const reset = () => { setThreshold(defaults.threshold); setVersion(defaults.version); setBatch(defaults.batch); setQueries(defaults.queries); setScenario("a"); clear(); };
-    const manual = (next: () => void) => { next(); setScenario(""); clear(); };
-    const choose = (id: string) => { setScenario(id); setThreshold(defaults.threshold); setBatch(defaults.batch); setQueries(defaults.queries); setVersion(id === "a" ? "v1" : "v2"); clear(); };
-    const input = { batchSize: batch, threshold, promptVersion: version, queriesText: queries };
-    return <main className="min-h-screen bg-background px-6 py-16 text-foreground"><div className="mx-auto max-w-5xl"><div className="mb-5 flex justify-between gap-3"><p className="text-xs text-muted-foreground">{es ? "Cambiar idioma reinicia el escenario." : "Changing language resets the scenario."}</p><a aria-label={es ? "Ver en inglés" : "View in Spanish"} href={`/${es ? "en" : "es"}/app`} className="rounded border px-3 py-1">{es ? "EN" : "ES"}</a></div><MissionBrief locale={locale} name="WARMSTART" title={es ? "¿Reutilizarías esta respuesta?" : "Would you reuse this answer?"} context={es ? "Un equipo de soporte quiere reutilizar respuestas sin mezclar intenciones distintas. Cambia la similitud y compara aciertos, coincidencias falsas y costos ilustrativos. La similitud es léxica local; no usa embeddings ni un modelo en vivo." : "A support team wants to reuse answers without confusing different intents. Change similarity and compare hits, false matches and illustrative costs. Similarity is computed locally from text; no embeddings or live model are used."} role={es ? "Responsable de plataforma de soporte" : "Support platform owner"} stakes={es ? "Respuestas incorrectas y costo por lote" : "Wrong answers and batch cost"}/><ScenarioPicker locale={locale} selected={scenario} onSelect={choose} options={[{ id: "a", label: s.scenarioA.title, description: s.scenarioA.input }, { id: "b", label: s.scenarioB.title, description: s.scenarioB.input }]}/><div className="mt-8 grid gap-6 md:grid-cols-2"><section className="rounded-xl border border-border p-5"><button type="button" data-mission-challenge className="mb-5 rounded-lg border border-accent px-4 py-3 text-sm" onClick={() => manual(() => { setThreshold(.35); setBatch(8); setVersion("v1"); setQueries(es ? "restablecer contraseña | acceso\nrestablecer contraseña facturación | facturación\nrestablecer contraseña | acceso" : "reset password | access\nreset billing password | billing\nreset password | access"); })}>{es ? "Probar el reto: intenciones parecidas" : "Try the challenge: lookalike intents"} →</button><label>{es ? "Tamaño de lote" : "Batch size"} {batch}<input className="mt-2 w-full" type="range" min="8" max="120" step="8" value={batch} onChange={e => manual(() => setBatch(Number(e.target.value)))}/></label><label className="mt-4 block">{es ? "Umbral de similitud" : "Similarity threshold"} {threshold.toFixed(2)}<input className="mt-2 w-full" type="range" min=".1" max=".99" step=".01" value={threshold} onChange={e => manual(() => setThreshold(Number(e.target.value)))}/></label><label className="mt-4 block">{es ? "Versión" : "Prompt version"}<input className="mt-2 w-full rounded border bg-background p-2" value={version} onChange={e => manual(() => setVersion(e.target.value))}/></label><label className="mt-4 block">{es ? "Consultas" : "Queries"}<textarea className="mt-2 min-h-20 w-full rounded border bg-background p-2" maxLength={120000} value={queries} onChange={e => manual(() => setQueries(e.target.value))}/></label><p className="mt-3 text-sm leading-6 text-muted-foreground">{es ? "Consultas opcionales: hasta 200 líneas, texto | intención (500 caracteres de texto y 80 de intención como máximo). Si las introduces, sustituyen el lote generado; el tamaño de lote solo se aplica con el campo vacío. Tarifas ilustrativas: 100¢ por 1,000 aciertos y 1,000¢ por 1,000 fallos; se redondea una vez al centavo superior por lote." : "Optional queries: up to 200 lines, text | intent (at most 500 query characters and 80 intent characters). Entered queries replace the generated batch; batch size applies only when this field is empty. Illustrative rates: 100¢ per 1,000 hits and 1,000¢ per 1,000 misses; the batch rounds up once to a whole cent."}</p><MissionPrompt locale={locale} question={es ? "Con estos datos, ¿habrá alguna coincidencia semántica con una intención equivocada?" : "With these inputs, will any semantic cache hit have the wrong labeled intent?"} prediction={prediction} onPredict={setPrediction} locked={Boolean(demo.run) || demo.running} options={[{ id: "false", label: es ? "Sí, coincidencia falsa" : "Yes, a false hit" }, { id: "clean", label: es ? "No hay coincidencias falsas" : "No false hits" }]}/><div className="mt-5 flex flex-wrap gap-2"><button data-run-experiment disabled={demo.running} onClick={() => demo.execute(input)} className="min-w-0 flex-1 rounded bg-accent px-4 py-3 text-white">{es ? "Reproducir" : "Replay"}</button><button className="rounded border px-3" onClick={demo.cancel}>{es ? "Cancelar" : "Cancel"}</button><button className="rounded border px-3" onClick={reset}>{es ? "Reiniciar" : "Reset"}</button></div>{demo.error && <p role="alert" className="mt-3 text-danger">{es ? (demo.error.includes("200")?"Usa como máximo 200 consultas.":demo.error.includes("500")?"Usa como máximo 500 caracteres por consulta y 80 por intención.":"Comprueba el umbral, la versión y el formato consulta | intención.") : demo.error}</p>}</section><section className="min-w-0 rounded-xl border border-border p-5">{result && demo.run ? <TracePlayer collapsible translate={key => traceCopy(es ? "es" : "en", key)} trace={demo.trace} locale={es ? "es" : "en"} executionMs={demo.run.executionMs} renderStage={frame => <><WarmstartScene frame={frame} input={demo.run!.input} result={result} locale={locale}/>{frame.complete && <MissionComparison locale={locale} prediction={prediction} actual={result.falseHits > 0 ? "false" : "clean"} actualLabel={es ? `Tu configuración produce ${result.falseHits} coincidencias falsas en ${result.total} consultas etiquetadas.` : `Your configuration produces ${result.falseHits} false hits in ${result.total} labeled queries.`} sides={[
-                        { label: es ? `Tu similitud: ${demo.run!.input.threshold.toFixed(2)}` : `Your similarity: ${demo.run!.input.threshold.toFixed(2)}`, value: `${result.comparison.selected.falseHits}`, detail: es ? `${result.comparison.selected.exactHits + result.comparison.selected.semanticHits} aciertos; ${result.comparison.selected.costCents}¢ calculados por lote.` : `${result.comparison.selected.exactHits + result.comparison.selected.semanticHits} hits; ${result.comparison.selected.costCents}¢ computed per batch.` },
-                        { label: es ? "Similitud de referencia: 0.95" : "Reference similarity: 0.95", value: `${result.comparison.reference.falseHits}`, detail: es ? `${result.comparison.reference.exactHits + result.comparison.reference.semanticHits} aciertos; ${result.comparison.reference.costCents}¢ calculados por lote.` : `${result.comparison.reference.exactHits + result.comparison.reference.semanticHits} hits; ${result.comparison.reference.costCents}¢ computed per batch.` }
-                    ]} explanation={es ? "Los números grandes cuentan coincidencias semánticas falsas. Mismas consultas, intenciones, orden, caché inicial y versión; solo cambia la similitud. Los fallos incorporan nuevas entradas, por lo que las rutas posteriores pueden divergir. El umbral 0.95 no garantiza corrección; estas etiquetas son supuestos del escenario." : "The large numbers count false semantic hits. Same queries, intents, order, starting cache and prompt version; only similarity changes. Misses insert entries, so later routes may diverge. A 0.95 threshold does not guarantee correctness; intent labels are scenario assumptions."}/>}</>}/> : <p className="text-muted-foreground">{es ? "Elige una versión y reproduce la caché." : "Choose a version and replay the cache."}</p>}</section></div><DecisionNotes locale={locale} implementation={es ? "Caché exacta y similitud léxica local con etiquetas de intención; facturación por lote en centavos enteros." : "Exact cache and local lexical similarity with intent labels; aggregate billing in integer cents."} rationale={es ? "Un acierto barato puede reutilizar una respuesta equivocada. La comparación muestra ese compromiso y conserva la invalidación por versión del prompt." : "A cheap hit can reuse the wrong answer. The comparison makes this tradeoff visible and preserves prompt-version invalidation."} production={es ? "Validar consultas reales etiquetadas, aciertos falsos exactos y semánticos, aislamiento entre usuarios, permisos, caducidad e invalidación; medir precios y latencia reales por separado." : "Validate labeled real queries, false exact and semantic hits, tenant isolation, permissions, expiry and invalidation; measure actual pricing and latency separately."}/></div></main>;
+  const locale = useLocale();
+  const t = STORY[locale];
+  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+  const [prediction, setPrediction] = useState<string | null>(null);
+  const demo = useDemoRun(runMission);
+  const run = demo.run;
+  const result = run?.result;
+  // Section 03 waits for the tape to finish; keyed to the trace so every new run resets it.
+  const [playedTrace, setPlayedTrace] = useState<typeof demo.trace | null>(null);
+  const played = demo.trace.length === 0 || playedTrace === demo.trace;
+  const clear = () => { setPrediction(null); demo.reset(); };
+  const reset = () => { setThreshold(DEFAULT_THRESHOLD); clear(); };
+  const input = { batchSize: 48, threshold, promptVersion: "v1" };
+  const scene = (frame: typeof COMPLETE_FRAME) => result ? <WarmstartStoryScene frame={frame} result={result} locale={locale} /> : null;
+  const mine = result?.comparison.selected, strict = result?.comparison.reference;
+
+  return <main className="mx-auto max-w-5xl px-5 py-8 text-foreground sm:py-12">
+    <StoryHero name={t.name} oneLiner={t.oneLiner} chips={t.chips} />
+
+    <StorySection index={1} heading={t.analogy.heading}>
+      <AnalogyBlock paragraphs={t.analogy.paragraphs} dictionaryLabel={t.analogy.dictionaryLabel} dictionary={t.analogy.dictionary} />
+    </StorySection>
+
+    <WhyIBuiltIt title={t.why.title} text={t.why.text} />
+
+    <StorySection index={2} heading={t.tryIt.heading} lead={t.tryIt.lead}>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
+        <section className="min-w-0 rounded-xl border border-border bg-surface p-5">
+          <MissionPrompt locale={locale} question={t.tryIt.question(threshold)} prediction={prediction} onPredict={setPrediction} locked={Boolean(run) || demo.running} options={[{ id: "yes", label: t.tryIt.yes }, { id: "no", label: t.tryIt.no }]} />
+          <label className="mt-5 block text-sm">{t.tryIt.thresholdLabel} <span className="font-mono">{Math.round(threshold * 100)}%</span>
+            <input aria-label={t.tryIt.thresholdLabel} className="mt-2 w-full" type="range" min="0.5" max="0.95" step="0.01" value={threshold} onChange={e => { setThreshold(Number(e.target.value)); clear(); }} />
+          </label>
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">{t.tryIt.note}</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button type="button" data-run-experiment disabled={demo.running} className="min-w-0 flex-1 rounded-lg bg-accent px-4 py-3 text-sm font-medium text-white disabled:opacity-60" onClick={() => demo.execute(input)}>{t.tryIt.simulate}</button>
+            <button type="button" className="rounded-lg border border-border px-3 py-3 text-sm" onClick={demo.cancel}>{t.tryIt.cancel}</button>
+            <button type="button" className="rounded-lg border border-border px-3 py-3 text-sm" onClick={reset}>{t.tryIt.reset}</button>
+          </div>
+          {demo.error ? <p role="alert" className="mt-3 text-sm text-danger">{t.tryIt.error}</p> : null}
+        </section>
+        <section className="min-w-0">
+          {run && result
+            ? (demo.trace.length === 0 ? scene(COMPLETE_FRAME) : <TracePlayer collapsible autoPlay headingLevel="h3" onComplete={() => setPlayedTrace(demo.trace)} translate={key => traceCopy(locale, key)} trace={demo.trace} locale={locale} executionMs={run.executionMs} renderStage={scene} />)
+            : <p className="rounded-xl border border-dashed border-border p-8 text-sm text-muted-foreground">{t.tryIt.idle}</p>}
+        </section>
+      </div>
+    </StorySection>
+
+    <StorySection index={3} heading={t.compare.heading} lead={t.compare.lead}>
+      {run && result && mine && strict && played ? <MissionComparison locale={locale} prediction={prediction} actual={result.falseHits > 0 ? "yes" : "no"} actualLabel={t.scene.reusedOf(result.exactHits + result.semanticHits - result.falseHits, result.total)} explanation={t.compare.sentence(mine.falseHits, strict.falseHits)} sides={[
+        { label: t.compare.mine(run.input.threshold), value: `${mine.falseHits}`, detail: `${t.compare.wrong} · ${t.compare.cost(mine.costCents)}` },
+        { label: t.compare.strict, value: `${strict.falseHits}`, detail: `${t.compare.wrong} · ${t.compare.cost(strict.costCents)}`, positive: strict.falseHits < mine.falseHits },
+      ]} /> : null}
+    </StorySection>
+
+    <StorySection index={4} heading={t.fit.heading}>
+      <FitGuide worthLabel={t.fit.worthLabel} worth={t.fit.worth} notLabel={t.fit.notLabel} not={t.fit.not} />
+    </StorySection>
+
+    <StorySection index={5} heading={t.proves.heading}>
+      <ProvesBlock text={t.proves.text} />
+    </StorySection>
+
+    <EngineerNotes summary={t.engineers.summary}>
+      <ul className="list-disc space-y-2 pl-5">{t.engineers.points.map(p => <li key={p}>{p}</li>)}</ul>
+      <a className="mt-4 inline-block text-accent underline underline-offset-4" href={REPO}>{t.engineers.repoLabel} →</a>
+    </EngineerNotes>
+  </main>;
 }

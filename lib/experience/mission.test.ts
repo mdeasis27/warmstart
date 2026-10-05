@@ -23,3 +23,11 @@ test("cancellation stops both runs and exposes no comparison", async () => {
   const controller = new AbortController();
   await expect(runMission(input, controller.signal, () => controller.abort())).rejects.toMatchObject({ name: "AbortError" });
 });
+
+test("the story's default bet can go either way on the threshold slider", async () => {
+  const falseHits = async (threshold: number) => (await runMission({ batchSize: 48, threshold, promptVersion: "v1" }, new AbortController().signal, () => {})).result.falseHits;
+  expect(await falseHits(.65)).toBeGreaterThan(0);
+  expect(await falseHits(.78)).toBe(0);
+  expect(await falseHits(.5)).toBeGreaterThan(0);
+  expect(await falseHits(.95)).toBe(0);
+});
