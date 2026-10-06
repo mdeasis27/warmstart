@@ -42,3 +42,8 @@ describe("Warmstart story copy", () => {
     expect(STORY.es.oneLiner).toBe("Reutiliza respuestas que ya diste, sin darle a nadie la respuesta de otro.");
   });
 });
+
+it("the verdict line states the graded quantity: wrong answers served", () => {
+  expect([0, 1, 3].map(STORY.en.compare.verdict)).toEqual(["Nobody got someone else's answer", "1 customer got someone else's answer", "3 customers got someone else's answer"]);
+  expect(STORY.es.compare.verdict(1)).toBe("1 cliente recibió la respuesta de otro");
+});

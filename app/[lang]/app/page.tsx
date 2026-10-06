@@ -45,7 +45,7 @@ export default function Page() {
         <section className="min-w-0 rounded-xl border border-border bg-surface p-5">
           <MissionPrompt locale={locale} question={t.tryIt.question(threshold)} prediction={prediction} onPredict={setPrediction} locked={Boolean(run) || demo.running} options={[{ id: "yes", label: t.tryIt.yes }, { id: "no", label: t.tryIt.no }]} />
           <label className="mt-5 block text-sm">{t.tryIt.thresholdLabel} <span className="font-mono">{Math.round(threshold * 100)}%</span>
-            <input aria-label={t.tryIt.thresholdLabel} className="mt-2 w-full" type="range" min="0.5" max="0.95" step="0.01" value={threshold} onChange={e => { setThreshold(Number(e.target.value)); clear(); }} />
+            <input aria-label={t.tryIt.thresholdLabel} aria-valuetext={`${Math.round(threshold * 100)}%`} className="mt-2 w-full" type="range" min="0.5" max="0.95" step="0.01" value={threshold} onChange={e => { setThreshold(Number(e.target.value)); clear(); }} />
           </label>
           <p className="mt-4 text-xs leading-5 text-muted-foreground">{t.tryIt.note}</p>
           <div className="mt-6 flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export default function Page() {
     </StorySection>
 
     <StorySection index={3} heading={t.compare.heading} lead={t.compare.lead}>
-      {run && result && mine && strict && played ? <MissionComparison locale={locale} prediction={prediction} actual={result.falseHits > 0 ? "yes" : "no"} actualLabel={t.scene.reusedOf(result.exactHits + result.semanticHits - result.falseHits, result.total)} explanation={t.compare.sentence(mine.falseHits, strict.falseHits)} sides={[
+      {run && result && mine && strict && played ? <MissionComparison locale={locale} prediction={prediction} actual={result.falseHits > 0 ? "yes" : "no"} actualLabel={t.compare.verdict(result.falseHits)} explanation={t.compare.sentence(mine.falseHits, strict.falseHits)} sides={[
         { label: t.compare.mine(run.input.threshold), value: `${mine.falseHits}`, detail: `${t.compare.wrong} · ${t.compare.cost(mine.costCents)}` },
         { label: t.compare.strict, value: `${strict.falseHits}`, detail: `${t.compare.wrong} · ${t.compare.cost(strict.costCents)}`, positive: strict.falseHits < mine.falseHits },
       ]} /> : null}

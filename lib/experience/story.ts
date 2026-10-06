@@ -9,7 +9,7 @@ export interface WarmstartStory {
   analogy: { heading: Heading; paragraphs: string[]; dictionaryLabel: string; dictionary: { term: string; means: string }[] };
   why: { title: string; text: string };
   tryIt: { heading: Heading; lead: string; question: (threshold: number) => string; yes: string; no: string; thresholdLabel: string; note: string; simulate: string; cancel: string; reset: string; error: string; idle: string };
-  compare: { heading: Heading; lead: string; mine: (threshold: number) => string; strict: string; wrong: string; cost: (cents: number) => string; sentence: (mine: number, strict: number) => string };
+  compare: { heading: Heading; lead: string; mine: (threshold: number) => string; strict: string; wrong: string; cost: (cents: number) => string; sentence: (mine: number, strict: number) => string; verdict: (falseHits: number) => string };
   fit: { heading: Heading; worthLabel: string; worth: string; notLabel: string; not: string };
   proves: { heading: Heading; text: string };
   engineers: { summary: string; points: string[]; repoLabel: string };
@@ -53,6 +53,7 @@ export const STORY: Record<"en" | "es", WarmstartStory> = {
       idle: "Place your bet and press Run it.",
     },
     compare: {
+      verdict: (n) => n === 0 ? "Nobody got someone else's answer" : n === 1 ? "1 customer got someone else's answer" : `${n} customers got someone else's answer`,
       heading: { before: "Your setting", accent: "or a strict one" },
       lead: "Same questions, same saved answers. The only change is how close a question has to be.",
       mine: (t) => `Your setting (${pct(t)}%)`,
@@ -136,6 +137,7 @@ export const STORY: Record<"en" | "es", WarmstartStory> = {
       idle: "Haz tu apuesta y presiona Correr.",
     },
     compare: {
+      verdict: (n) => n === 0 ? "Nadie recibió la respuesta de otro" : n === 1 ? "1 cliente recibió la respuesta de otro" : `${n} clientes recibieron la respuesta de otro`,
       heading: { before: "Tu ajuste", accent: "o uno estricto" },
       lead: "Las mismas preguntas y las mismas respuestas guardadas. Solo cambia qué tan parecida tiene que ser una pregunta.",
       mine: (t) => `Tu ajuste (${pct(t)}%)`,
