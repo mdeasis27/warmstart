@@ -1,7 +1,5 @@
 import type { Heading } from "@/design-system/demo/project-story";
 
-type NodeCopy = { name: string; sub: string; analogy: string };
-
 export interface WarmstartStory {
   name: string;
   oneLiner: string;
@@ -13,7 +11,15 @@ export interface WarmstartStory {
   fit: { heading: Heading; worthLabel: string; worth: string; notLabel: string; not: string };
   proves: { heading: Heading; text: string };
   engineers: { summary: string; points: string[]; repoLabel: string };
-  scene: { title: string; caption: string; statusLabels: { active: string; danger: string; success: string }; tapeLabel: string; nodes: { clients: NodeCopy; cache: NodeCopy; saved: NodeCopy; kitchen: NodeCopy }; tape: { served: string; rerouted: string; lost: string }; reusedOf: (n: number, total: number) => string };
+  scene: {
+    title: string; caption: string; tapeLabel: string; tape: { served: string; rerouted: string; lost: string }; reusedOf: (n: number, total: number) => string;
+    places: { door: string; shelf: string; shelfSub: string; kitchen: string; kitchenSub: string };
+    customerOf: (n: number, total: number) => string;
+    brought: { usual: string; fresh: string; wrong: string };
+    wrongNote: (n: number, asked: string, served: string) => string;
+    /** Dish names for the workload intents; an unknown intent shows its raw id. */
+    intents: Record<string, string>;
+  };
 }
 
 const pct = (threshold: number) => Math.round(threshold * 100);
@@ -91,16 +97,14 @@ export const STORY: Record<"en" | "es", WarmstartStory> = {
     scene: {
       title: "Where each question was answered",
       caption: "Watch the waiter decide, question by question, whether to bring a saved answer or send it to the kitchen.",
-      statusLabels: { active: "deciding", success: "in use", danger: "served a wrong answer" },
       tapeLabel: "Forty-eight customer questions, in order",
-      nodes: {
-        clients: { name: "Customers", sub: "48 questions", analogy: "the diners" },
-        cache: { name: "Warmstart", sub: "reuse or compute", analogy: "the waiter" },
-        saved: { name: "Saved answers", sub: "reused", analogy: "the usual order" },
-        kitchen: { name: "Model", sub: "fresh answer", analogy: "the kitchen" },
-      },
       tape: { served: "reused", rerouted: "worked out again", lost: "wrong answer" },
       reusedOf: (n, total) => `${n} of ${total} answers reused`,
+      places: { door: "Door", shelf: "The usual", shelfSub: "saved answers", kitchen: "Kitchen", kitchenSub: "fresh answer" },
+      customerOf: (n, total) => `Customer ${n} of ${total}`,
+      brought: { usual: "Already saved. The waiter brings the usual:", fresh: "Nothing close enough. The kitchen makes a fresh one:", wrong: "The waiter brings the usual, but it was someone else's order:" },
+      wrongNote: (n, asked, served) => `× Customer ${n} asked about ${asked} and got the answer for ${served}.`,
+      intents: { order_status: "where my order is", returns_policy: "returns", returns_damaged: "returning something damaged", shipping_canada: "shipping to Canada", payment_methods: "ways to pay", change_address: "changing my address" },
     },
   },
   es: {
@@ -175,16 +179,14 @@ export const STORY: Record<"en" | "es", WarmstartStory> = {
     scene: {
       title: "Dónde se respondió cada pregunta",
       caption: "Mira cómo el mesero decide, pregunta por pregunta, si trae una respuesta guardada o la manda a la cocina.",
-      statusLabels: { active: "decidiendo", success: "en uso", danger: "dio una respuesta equivocada" },
       tapeLabel: "Cuarenta y ocho preguntas de clientes, en orden",
-      nodes: {
-        clients: { name: "Clientes", sub: "48 preguntas", analogy: "los comensales" },
-        cache: { name: "Warmstart", sub: "reutiliza o calcula", analogy: "el mesero" },
-        saved: { name: "Respuestas guardadas", sub: "reutilizadas", analogy: "el pedido de siempre" },
-        kitchen: { name: "Modelo", sub: "respuesta nueva", analogy: "la cocina" },
-      },
       tape: { served: "reutilizada", rerouted: "calculada de nuevo", lost: "respuesta equivocada" },
       reusedOf: (n, total) => `${n} de ${total} respuestas reutilizadas`,
+      places: { door: "Entrada", shelf: "Lo de siempre", shelfSub: "respuestas guardadas", kitchen: "Cocina", kitchenSub: "respuesta nueva" },
+      customerOf: (n, total) => `Cliente ${n} de ${total}`,
+      brought: { usual: "Ya lo tenía guardado. El mesero trae lo de siempre:", fresh: "Nada se parecía lo suficiente. La cocina prepara uno nuevo:", wrong: "El mesero trae lo de siempre, pero era el pedido de otro:" },
+      wrongNote: (n, asked, served) => `× El cliente ${n} preguntaba por ${asked} y recibió la respuesta de ${served}.`,
+      intents: { order_status: "dónde va mi pedido", returns_policy: "devoluciones", returns_damaged: "devolver algo dañado", shipping_canada: "envíos a Canadá", payment_methods: "formas de pago", change_address: "cambiar mi dirección" },
     },
   },
 };

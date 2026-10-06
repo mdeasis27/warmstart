@@ -1,1 +1,1 @@
-export function traceCopy(locale:"en"|"es",key:string){const es=locale==="es";return ({exact:es?"coincidencia exacta":"exact match",semantic:es?"coincidencia semántica":"semantic match",miss:es?"sin coincidencia":"miss"}[key]??key);}
+export function traceCopy(locale:"en"|"es",key:string){const es=locale==="es";return ({exact:es?"coincidencia exacta":"exact match",semantic:es?"coincidencia semántica":"semantic match",miss:es?"sin coincidencia":"miss",false:es?"coincidencia equivocada":"wrong match"}[key]??key);}

@@ -26,3 +26,14 @@ describe("Warmstart version invalidation", () => {
     expect(v2.result.misses).toBeGreaterThan(v1.result.misses);
   });
 });
+
+describe("Warmstart per-question playback", () => {
+  it("emits one trace event per question, in order, and returns the questions it replayed", async () => {
+    const events: string[] = [];
+    const run = await runExperience({ batchSize: 48, threshold: .65, promptVersion: "v1" }, new AbortController().signal, e => events.push(e.messageKey));
+    expect(run.trace).toHaveLength(48);
+    expect(events).toEqual(run.result.outcomes);
+    expect(run.trace.map(e => e.evidenceIds?.[0])).toEqual(run.result.questions.map(q => q.query));
+    expect(run.result.questions).toHaveLength(48);
+  });
+});

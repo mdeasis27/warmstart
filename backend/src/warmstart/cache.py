@@ -87,9 +87,11 @@ def replay(workload: list[dict], params: dict, threshold: float) -> dict:
     cache = create_cache(threshold)
     exact_hits = semantic_hits = false_hits = misses = 0
     outcomes = []
+    served_intents = []
     for item in workload:
         hit = cache["get"](item["query"], params, item["intent"])
         outcomes.append("false" if hit["kind"] == "semantic" and hit.get("falseHit") else hit["kind"])
+        served_intents.append(hit["entry"]["intent"] if "entry" in hit else None)
         if hit["kind"] == "exact":
             exact_hits += 1
         elif hit["kind"] == "semantic":
@@ -120,4 +122,5 @@ def replay(workload: list[dict], params: dict, threshold: float) -> dict:
         "baselineCostUsd": baseline,
         "savingsPct": 1 - cost / baseline if baseline else 0.0,
         "outcomes": outcomes,
+        "servedIntents": served_intents,
     }
