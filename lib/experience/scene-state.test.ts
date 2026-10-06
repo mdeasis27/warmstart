@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { tapeCounts } from "@/design-system/demo/outcome-tape";
-import { revealedQuestions, warmstartCells } from "./scene-state";
+import { customerAt, firstWrong, revealedQuestions, warmstartCells } from "./scene-state";
 import { runMission } from "./mission";
 
 it("maps outcomes to tape cells and hides the unrevealed ones", () => {
@@ -14,10 +14,24 @@ it("final tape counts equal the engine totals", async () => {
   expect(counts).toEqual({ served: r.exactHits + r.semanticHits - r.falseHits, rerouted: r.misses, lost: r.falseHits, pending: 0 });
 });
 
-it("reveals questions in proportion to the playback, all of them when complete or under reduced motion", () => {
-  expect(revealedQuestions({ visible: 1, total: 3, complete: false }, 48, false)).toBe(16);
-  expect(revealedQuestions({ visible: 2, total: 3, complete: false }, 48, false)).toBe(32);
-  expect(revealedQuestions({ visible: 3, total: 3, complete: true }, 48, false)).toBe(48);
-  expect(revealedQuestions({ visible: 1, total: 3, complete: false }, 48, true)).toBe(48);
-  expect(revealedQuestions({ visible: 0, total: 0, complete: false }, 48, false)).toBe(48);
+it("reveals one question per playback step, all of them when complete", () => {
+  expect(revealedQuestions({ visible: 17, total: 48, complete: false }, 48)).toBe(17);
+  expect(revealedQuestions({ visible: 48, total: 48, complete: true }, 48)).toBe(48);
+  expect(revealedQuestions({ visible: 0, total: 0, complete: true }, 48)).toBe(48);
+});
+
+const result = {
+  outcomes: ["miss", "exact", "false", "false"] as const,
+  servedIntents: [null, "order", "damaged", "order"],
+  questions: [{ query: "where is it", intent: "order" }, { query: "where is it", intent: "order" }, { query: "can I return it", intent: "policy" }, { query: "pay by card", intent: "pay" }],
+};
+
+it("describes each customer from the run: what was asked and what was served", () => {
+  expect(customerAt(result, 0)).toEqual({ number: 1, query: "where is it", asked: "order", served: null, outcome: "miss" });
+  expect(customerAt(result, 2)).toEqual({ number: 3, query: "can I return it", asked: "policy", served: "damaged", outcome: "false" });
+});
+
+it("finds the first wrong answer among the customers already served", () => {
+  expect(firstWrong(result, 2)).toBeUndefined();
+  expect(firstWrong(result, 4)?.number).toBe(3);
 });

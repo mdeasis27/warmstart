@@ -93,7 +93,22 @@ describe("per-query outcomes", () => {
     expect(r.outcomes.filter(o => o === "semantic" || o === "false")).toHaveLength(r.semanticHits);
   });
 
-  it("matches the outcomes pinned for Python", () => {
-    for (const c of outcomesFixture.cases) expect(replay(outcomesFixture.workload, PARAMS, c.threshold).outcomes).toEqual(c.outcomes);
+  it("matches the outcomes and served intents pinned for Python", () => {
+    for (const c of outcomesFixture.cases) {
+      const r = replay(outcomesFixture.workload, PARAMS, c.threshold);
+      expect(r.outcomes).toEqual(c.outcomes);
+      expect(r.servedIntents).toEqual(c.servedIntents);
+    }
+  });
+
+  it("serves the asked intent on a right hit, nothing on a miss and another intent on a false hit", () => {
+    const r = replay(outcomesFixture.workload, PARAMS, 0.35);
+    expect(r.outcomes).toContain("false");
+    r.outcomes.forEach((o, i) => {
+      const asked = outcomesFixture.workload[i].intent;
+      if (o === "miss") expect(r.servedIntents[i]).toBeNull();
+      else if (o === "false") expect(r.servedIntents[i]).not.toBe(asked);
+      else expect(r.servedIntents[i]).toBe(asked);
+    });
   });
 });

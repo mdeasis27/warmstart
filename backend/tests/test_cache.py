@@ -46,10 +46,27 @@ def test_replay_savings():
     assert r["costUsd"] < r["baselineCostUsd"]
 
 
+import json
+from pathlib import Path
+
+# One fixture for both runners: vitest imports the same file.
+FIXTURE = json.loads((Path(__file__).resolve().parents[2] / "lib" / "cache" / "fixtures" / "outcomes.json").read_text(encoding="utf-8"))
+
+
 def test_outcomes_match_shared_fixture():
-    import json
-    from pathlib import Path
-    fx = json.loads((Path(__file__).parent / "fixtures" / "outcomes.json").read_text(encoding="utf-8"))
-    for case in fx["cases"]:
-        r = replay(fx["workload"], fx["params"], case["threshold"])
+    for case in FIXTURE["cases"]:
+        r = replay(FIXTURE["workload"], FIXTURE["params"], case["threshold"])
         assert r["outcomes"] == case["outcomes"], case["threshold"]
+        assert r["servedIntents"] == case["servedIntents"], case["threshold"]
+
+
+def test_served_intent_matches_outcome():
+    r = replay(FIXTURE["workload"], FIXTURE["params"], 0.35)
+    assert "false" in r["outcomes"]
+    for o, served, item in zip(r["outcomes"], r["servedIntents"], FIXTURE["workload"]):
+        if o == "miss":
+            assert served is None
+        elif o == "false":
+            assert served != item["intent"]
+        else:
+            assert served == item["intent"]

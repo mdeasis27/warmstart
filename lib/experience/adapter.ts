@@ -2,7 +2,7 @@ import { createCache, replay } from "@/lib/cache/cache";
 import { generateWorkload } from "@/lib/cache/workload";
 import type { DemoAdapter, TraceEvent } from "./types";
 export type ExperienceInput = { batchSize: number; threshold: number; promptVersion: string; queriesText?: string };
-export type ExperienceResult = ReturnType<typeof replay> & { costCents: number; baselineCostCents: number; invalidatedCount: number };
+export type ExperienceResult = ReturnType<typeof replay> & { costCents: number; baselineCostCents: number; invalidatedCount: number; questions: { query: string; intent: string }[] };
 export const runExperience: DemoAdapter<ExperienceInput, ExperienceResult> = async (input, signal, onEvent) => {
   const startedAt = performance.now();
   if (!Number.isInteger(input.batchSize) || input.batchSize < 1 || input.batchSize > 200) throw new Error("Batch size must be an integer from 1 to 200.");
@@ -27,7 +27,9 @@ export const runExperience: DemoAdapter<ExperienceInput, ExperienceResult> = asy
   const result = {
     ...raw,
     invalidatedCount,
+    questions: workload,
   };
-  const trace: TraceEvent[] = ["exact", "semantic", "miss"].map((kind, index) => ({ id: kind, step: index + 1, kind: "lookup", messageKey: kind, timestampMs: performance.now() - startedAt })); for (const event of trace) { if (signal.aborted) throw new DOMException("Aborted", "AbortError"); onEvent(event); if (signal.aborted) throw new DOMException("Aborted", "AbortError"); }
+  // One step per question so the scene plays each customer in turn.
+  const trace: TraceEvent[] = raw.outcomes.map((outcome, index) => ({ id: `q${index + 1}`, step: index + 1, kind: "lookup", messageKey: outcome, evidenceIds: [workload[index].query], timestampMs: performance.now() - startedAt })); for (const event of trace) { if (signal.aborted) throw new DOMException("Aborted", "AbortError"); onEvent(event); if (signal.aborted) throw new DOMException("Aborted", "AbortError"); }
   return { input, result, trace, executionMs: performance.now() - startedAt, mode: "simulation" };
 };

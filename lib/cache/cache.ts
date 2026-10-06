@@ -99,6 +99,8 @@ export type ReplayResult = {
   savingsPct: number;
   /** One per workload item, in order. "false" is a semantic hit that served another intent's answer. */
   outcomes: ("exact" | "semantic" | "miss" | "false")[];
+  /** Intent of the saved answer served to each query, in order; null when the model worked out a fresh one. */
+  servedIntents: (string | null)[];
 };
 
 export const MISS_CENTS_PER_THOUSAND = 1000;
@@ -115,10 +117,12 @@ export function replay(
   let falseHits = 0;
   let misses = 0;
   const outcomes: ReplayResult["outcomes"] = [];
+  const servedIntents: (string | null)[] = [];
 
   for (const item of workload) {
     const hit = cache.get(item.query, params, item.intent);
     outcomes.push(hit.kind === "semantic" && hit.falseHit ? "false" : hit.kind);
+    servedIntents.push(hit.entry?.intent ?? null);
     if (hit.kind === "exact") exactHits += 1;
     else if (hit.kind === "semantic") {
       semanticHits += 1;
@@ -151,5 +155,6 @@ export function replay(
     baselineCostCents,
     savingsPct: baselineCostCents === 0 ? 0 : 1 - costCents / baselineCostCents,
     outcomes,
+    servedIntents,
   };
 }
