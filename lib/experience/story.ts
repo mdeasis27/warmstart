@@ -15,6 +15,8 @@ export interface WarmstartStory {
     title: string; caption: string; tapeLabel: string; tape: { served: string; rerouted: string; lost: string }; reusedOf: (n: number, total: number) => string;
     places: { door: string; shelf: string; shelfSub: string; kitchen: string; kitchenSub: string };
     customerOf: (n: number, total: number) => string;
+    /** Label over the quoted question. The question is real data and always in Spanish, so English says so. */
+    queryLabel: string;
     brought: { usual: string; fresh: string; wrong: string };
     wrongNote: (n: number, asked: string, served: string) => string;
     /** Dish names for the workload intents; an unknown intent shows its raw id. */
@@ -102,6 +104,7 @@ export const STORY: Record<"en" | "es", WarmstartStory> = {
       reusedOf: (n, total) => `${n} of ${total} answers reused`,
       places: { door: "Door", shelf: "The usual", shelfSub: "saved answers", kitchen: "Kitchen", kitchenSub: "fresh answer" },
       customerOf: (n, total) => `Customer ${n} of ${total}`,
+      queryLabel: "The customer asks (in Spanish):",
       brought: { usual: "Already saved. The waiter brings the usual:", fresh: "Nothing close enough. The kitchen makes a fresh one:", wrong: "The waiter brings the usual, but it was someone else's order:" },
       wrongNote: (n, asked, served) => `× Customer ${n} asked about ${asked} and got the answer for ${served}.`,
       intents: { order_status: "where my order is", returns_policy: "returns", returns_damaged: "returning something damaged", shipping_canada: "shipping to Canada", payment_methods: "ways to pay", change_address: "changing my address" },
@@ -184,6 +187,7 @@ export const STORY: Record<"en" | "es", WarmstartStory> = {
       reusedOf: (n, total) => `${n} de ${total} respuestas reutilizadas`,
       places: { door: "Entrada", shelf: "Lo de siempre", shelfSub: "respuestas guardadas", kitchen: "Cocina", kitchenSub: "respuesta nueva" },
       customerOf: (n, total) => `Cliente ${n} de ${total}`,
+      queryLabel: "El cliente pregunta:",
       brought: { usual: "Ya lo tenía guardado. El mesero trae lo de siempre:", fresh: "Nada se parecía lo suficiente. La cocina prepara uno nuevo:", wrong: "El mesero trae lo de siempre, pero era el pedido de otro:" },
       wrongNote: (n, asked, served) => `× El cliente ${n} preguntaba por ${asked} y recibió la respuesta de ${served}.`,
       intents: { order_status: "dónde va mi pedido", returns_policy: "devoluciones", returns_damaged: "devolver algo dañado", shipping_canada: "envíos a Canadá", payment_methods: "formas de pago", change_address: "cambiar mi dirección" },

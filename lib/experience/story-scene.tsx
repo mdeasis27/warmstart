@@ -69,7 +69,7 @@ export function WarmstartStoryScene({ frame, result, locale }: { frame: Playback
       </svg>
 
       {focus ? <div className="mt-3 space-y-2 text-sm leading-6">
-        <p className="rounded-lg border border-border bg-background px-3 py-2">“{focus.query}”</p>
+        <p className="rounded-lg border border-border bg-background px-3 py-2"><span className="block text-xs text-muted-foreground">{copy.queryLabel}</span><span lang="es">“{focus.query}”</span></p>
         <p>{focus.outcome === "false" ? copy.brought.wrong : kitchen ? copy.brought.fresh : copy.brought.usual} <strong>{dish(focus.served ?? focus.asked)}</strong></p>
       </div> : null}
       <p data-wrong-note className="mt-2 min-h-6 text-sm font-medium text-danger">{wrong ? copy.wrongNote(wrong.number, dish(wrong.asked), dish(wrong.served ?? wrong.asked)) : ""}</p>
